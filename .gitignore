@@ -4,4 +4,5 @@ dist/
 *.log
 logs/
 .DS_Store
+Documents/class-diagram.html
 tsconfig.tsbuildinfo
