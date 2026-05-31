@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<title>Диаграмма классов — серверная часть</title>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+<style>
+  body { font-family: Arial, sans-serif; background: #fff; padding: 20px; }
+  h2 { text-align: center; font-size: 16px; margin-bottom: 20px; }
+  .mermaid { max-width: 1200px; margin: 0 auto; }
+  p { text-align: center; font-style: italic; font-size: 13px; color: #555; }
+  button {
+    display: block; margin: 16px auto;
+    padding: 8px 20px; font-size: 14px;
+    background: #2563eb; color: #fff;
+    border: none; border-radius: 6px; cursor: pointer;
+  }
+</style>
+</head>
+<body>
+<h2>Рис. 4. Диаграмма классов серверной части приложения</h2>
+<button onclick="window.print()">Сохранить / Распечатать</button>
+
+<div class="mermaid">
+classDiagram
+
+  %% ── Entities ─────────────────────────────────────────
+  class User {
+    +id: number
+    +name: string
+    +email: string
+    +password: string
+    +age: number
+    +role: string
+    +createdAt: Date
+    +updatedAt: Date
+  }
+
+  class Farm {
+    +id: number
+    +name: string
+    +location: string
+    +createdAt: Date
+  }
+
+  class Cow {
+    +id: number
+    +name: string
+    +breed: string
+    +age: number
+    +weight: number
+    +status: string
+    +farmId: number
+    +registeredAt: Date
+  }
+
+  class MilkRecord {
+    +id: number
+    +cowId: number
+    +liters: number
+    +recordedAt: string
+    +recordedBy: number
+    +createdAt: Date
+  }
+
+  %% ── DTOs ──────────────────────────────────────────────
+  class CreateUserDto {
+    +name: string
+    +email: string
+    +password: string
+    +age?: number
+    +role?: UserRole
+  }
+
+  class CreateCowDto {
+    +name: string
+    +breed: string
+    +age: number
+    +weight: number
+    +status?: string
+    +farmId?: number
+  }
+
+  class CreateFarmDto {
+    +name: string
+    +location?: string
+  }
+
+  class CreateMilkRecordDto {
+    +cowId: number
+    +liters: number
+    +recordedAt?: string
+    +recordedBy?: number
+  }
+
+  class LoginDto {
+    +email: string
+    +password: string
+  }
+
+  %% ── Services ──────────────────────────────────────────
+  class UsersService {
+    -usersRepo: Repository~User~
+    +create(dto) User
+    +findAll() User[]
+    +findOne(id) User
+    +findByEmail(email) User
+  }
+
+  class AuthService {
+    -usersService: UsersService
+    -jwtService: JwtService
+    -logger: AppLoggerService
+    +login(dto) token
+    +getProfile(userId) User
+  }
+
+  class CowsService {
+    -cowsRepo: Repository~Cow~
+    -dataSource: DataSource
+    +findAll(breed, status, farmId) Cow[]
+    +findOne(id) Cow
+    +create(dto) Cow
+    +update(id, dto) Cow
+    +remove(id) void
+    +getStats() object
+  }
+
+  class FarmsService {
+    -farmsRepo: Repository~Farm~
+    -dataSource: DataSource
+    +findAll() Farm[]
+    +findOne(id) Farm
+    +create(dto) Farm
+    +update(id, dto) Farm
+    +remove(id) void
+    +transferCow(cowId, farmId) void
+  }
+
+  class MilkRecordsService {
+    -milkRepo: Repository~MilkRecord~
+    -dataSource: DataSource
+    +findAll(cowId?) MilkRecord[]
+    +findOne(id) MilkRecord
+    +create(dto) MilkRecord
+    +remove(id) void
+    +getTotalByDate(date) object
+  }
+
+  class AppLoggerService {
+    -logFile: string
+    +log(message, context?)
+    +error(message, trace?, context?)
+    +warn(message, context?)
+    +debug(message, context?)
+  }
+
+  class DatabaseInitService {
+    -dataSource: DataSource
+    +onApplicationBootstrap()
+    -createDatabaseObjects()
+  }
+
+  %% ── Controllers ───────────────────────────────────────
+  class AuthController {
+    +login(dto) token
+    +register(dto) User
+    +getProfile(req) User
+  }
+
+  class UsersController {
+    +getAll() User[]
+    +getById(id) User
+    +create(dto) User
+  }
+
+  class CowsController {
+    +findAll(breed, status, farmId) Cow[]
+    +getStats() object
+    +findOne(id) Cow
+    +create(dto) Cow
+    +update(id, dto) Cow
+    +remove(id) void
+  }
+
+  class FarmsController {
+    +findAll() Farm[]
+    +findOne(id) Farm
+    +create(dto) Farm
+    +update(id, dto) Farm
+    +remove(id) void
+    +transfer(body) void
+  }
+
+  class MilkRecordsController {
+    +findAll(cowId?) MilkRecord[]
+    +getTotalByDate(date) object
+    +findOne(id) MilkRecord
+    +create(dto) MilkRecord
+    +remove(id) void
+  }
+
+  %% ── Guards / Strategy ─────────────────────────────────
+  class JwtAuthGuard {
+    +handleRequest(err, user) user
+  }
+
+  class RolesGuard {
+    -reflector: Reflector
+    +canActivate(context) boolean
+  }
+
+  class JwtStrategy {
+    +validate(payload) user
+  }
+
+  class HttpExceptionFilter {
+    -logger: AppLoggerService
+    +catch(exception, host) void
+  }
+
+  %% ── Связи: контроллер → сервис ────────────────────────
+  AuthController       --> AuthService
+  AuthController       --> UsersService
+  UsersController      --> UsersService
+  CowsController       --> CowsService
+  FarmsController      --> FarmsService
+  MilkRecordsController --> MilkRecordsService
+
+  %% ── Связи: сервис → сущность ──────────────────────────
+  UsersService         --> User
+  CowsService          --> Cow
+  FarmsService         --> Farm
+  MilkRecordsService   --> MilkRecord
+  AuthService          --> UsersService
+
+  %% ── Связи: сущности ───────────────────────────────────
+  Cow        --> Farm : farm_id
+  MilkRecord --> Cow  : cow_id
+  MilkRecord --> User : recorded_by
+
+  %% ── Связи: DTO → контроллер ───────────────────────────
+  UsersController       ..> CreateUserDto
+  CowsController        ..> CreateCowDto
+  FarmsController       ..> CreateFarmDto
+  MilkRecordsController ..> CreateMilkRecordDto
+  AuthController        ..> LoginDto
+
+  %% ── Guards ────────────────────────────────────────────
+  JwtAuthGuard ..> JwtStrategy
+  HttpExceptionFilter --> AppLoggerService
+</div>
+
+<p>Рис. 4. Диаграмма классов серверной части приложения</p>
+
+<script>
+  mermaid.initialize({ startOnLoad: true, theme: 'default', classDiagram: { useMaxWidth: true } })
+</script>
+</body>
+</html>
